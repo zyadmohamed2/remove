@@ -39,7 +39,7 @@ def process_image():
     output.seek(0)
 
     # Return the combined image
-    return send_file(output, mimetype='image/png', as_attachment=True, download_name="processed_image.png")
+    return send_file(output, mimetype='image/png')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
