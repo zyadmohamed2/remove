@@ -1,45 +1,45 @@
-from flask import Flask, render_template, request, jsonify
-from rembg import remove
-import base64
-from io import BytesIO
+from flask import Flask, request, send_file
 from PIL import Image
-import os
+from rembg import remove
+import io
 
 app = Flask(__name__)
 
-UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+@app.route('/process-image', methods=['POST'])
+def process_image():
+    # Check if both user_image and background_image are provided
+    if 'user_image' not in request.files or 'background_image' not in request.files:
+        return {'error': 'Please provide both user_image and background_image.'}, 400
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+    # Get the images from the request
+    user_image_file = request.files['user_image']
+    background_image_file = request.files['background_image']
 
-@app.route('/remove-background', methods=['POST'])
-def remove_bg():
-    # Get the base64 image data from the POST request
-    data = request.get_json()
-    image_data = data.get('image')
+    # Open and process user_image (remove background)
+    user_image = Image.open(user_image_file)
+    user_image = user_image.convert('RGBA')
+    user_image_bytes = io.BytesIO()
+    user_image.save(user_image_bytes, format='PNG')
+    user_image_no_bg = remove(user_image_bytes.getvalue())
+    user_image_no_bg = Image.open(io.BytesIO(user_image_no_bg))
 
-    # Decode the base64 string
-    img_data = base64.b64decode(image_data.split(',')[1])
-    img = Image.open(BytesIO(img_data))
+    # Open background_image
+    background_image = Image.open(background_image_file)
 
-    # Remove the background using rembg
-    result = remove(img)
+    # Resize user_image to fit background_image dimensions
+    user_image_no_bg = user_image_no_bg.resize(background_image.size, Image.ANTIALIAS)
 
-    # Save the image with the background removed
-    output_path = os.path.join(UPLOAD_FOLDER, 'processed_image.png')
-    result.save(output_path)
+    # Merge user_image_no_bg onto background_image
+    combined_image = background_image.copy()
+    combined_image.paste(user_image_no_bg, (0, 0), user_image_no_bg)
 
-    # Convert the result to a base64 string
-    buffered = BytesIO()
-    result.save(buffered, format="PNG")
-    result_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+    # Save the final image to a BytesIO object
+    output = io.BytesIO()
+    combined_image.save(output, format='PNG')
+    output.seek(0)
 
-    # Send the processed image back to the client
-    return jsonify({"image": f"data:image/png;base64,{result_base64}"})
+    # Return the combined image
+    return send_file(output, mimetype='image/png')
 
-
-if _name_ == '_main_':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == '__main__':
+    app.run(debug=True)
