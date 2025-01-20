@@ -1,0 +1,2 @@
+[start]
+cmd = "gunicorn --worker-class gevent --workers=2 --timeout=600 helloworld:app"
