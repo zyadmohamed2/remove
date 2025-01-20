@@ -27,7 +27,7 @@ def process_image():
     background_image = Image.open(background_image_file)
 
     # Resize user_image to fit background_image dimensions
-    user_image_no_bg = user_image_no_bg.resize(background_image.size, Image.ANTIALIAS)
+    user_image_no_bg = user_image_no_bg.resize(background_image.size, Image.Resampling.LANCZOS)
 
     # Merge user_image_no_bg onto background_image
     combined_image = background_image.copy()
