@@ -7,39 +7,37 @@ app = Flask(__name__)
 
 @app.route('/process-image', methods=['POST'])
 def process_image():
-    # Check if both user_image and background_image are provided
-    if 'user_image' not in request.files or 'background_image' not in request.files:
-        return {'error': 'Please provide both user_image and background_image.'}, 400
+    # التحقق من وجود الصورة في الطلب
+    if 'user_image' not in request.files:
+        return {'error': 'Please provide the user_image.'}, 400
 
-    # Get the images from the request
+    # استلام الصورة من الطلب
     user_image_file = request.files['user_image']
-    background_image_file = request.files['background_image']
 
-    # Open and process user_image (remove background)
-    user_image = Image.open(user_image_file)
-    user_image = user_image.convert('RGBA')
-    user_image_bytes = io.BytesIO()
-    user_image.save(user_image_bytes, format='PNG')
-    user_image_no_bg = remove(user_image_bytes.getvalue())
-    user_image_no_bg = Image.open(io.BytesIO(user_image_no_bg))
+    try:
+        # فتح الصورة وتحويلها إلى صيغة RGBA
+        user_image = Image.open(user_image_file).convert('RGBA')
 
-    # Open background_image
-    background_image = Image.open(background_image_file)
+        # إزالة الخلفية باستخدام rembg
+        user_image_bytes = io.BytesIO()
+        user_image.save(user_image_bytes, format='PNG')
+        user_image_no_bg = remove(user_image_bytes.getvalue())
+        user_image_no_bg = Image.open(io.BytesIO(user_image_no_bg))
 
-    # Resize user_image to fit background_image dimensions
-    user_image_no_bg = user_image_no_bg.resize(background_image.size, Image.Resampling.LANCZOS)
+        # حفظ الصورة المعالجة إلى كائن BytesIO
+        output = io.BytesIO()
+        user_image_no_bg.save(output, format='PNG')
+        output.seek(0)
 
-    # Merge user_image_no_bg onto background_image
-    combined_image = background_image.copy()
-    combined_image.paste(user_image_no_bg, (0, 0), user_image_no_bg)
+        # تنظيف الذاكرة
+        del user_image, user_image_no_bg
 
-    # Save the final image to a BytesIO object
-    output = io.BytesIO()
-    combined_image.save(output, format='PNG')
-    output.seek(0)
+        # إعادة الصورة بدون خلفية
+        return send_file(output, mimetype='image/png')
 
-    # Return the combined image
-    return send_file(output, mimetype='image/png')
+    except Exception as e:
+        # معالجة الأخطاء
+        return {'error': str(e)}, 500
 
 if __name__ == '__main__':
     app.run(debug=False)
