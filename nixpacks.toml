@@ -1,2 +1,0 @@
-[start]
-gunicorn --worker-class gevent --workers=1 --timeout=600 helloworld:app --bind 0.0.0.0:${PORT}
